@@ -40,8 +40,6 @@ public class ExpensesServiceImpl extends ServiceImpl<ExpensesMapper, Expenses> i
         this.incomeMapper = incomeMapper;
         this.categoriesMapper = categoriesMapper;
     }
-
-
     /**
      * @param expenses 前端传递的一条新的消费记录
      * @return 返回插入数据库的结果
@@ -126,7 +124,6 @@ public class ExpensesServiceImpl extends ServiceImpl<ExpensesMapper, Expenses> i
         }
         return map;
     }
-
     /**
      * @param userId 用户id
      * @return 返回支出折线图
