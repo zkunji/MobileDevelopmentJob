@@ -74,7 +74,7 @@ public class ExpensesServiceImpl extends ServiceImpl<ExpensesMapper, Expenses> i
         String userId = expenses.getUserId();
         Integer type = expenses.getType();
         Double price = expenses.getAmount();
-        int i = expensesMapper.deleteById(id);
+        expensesMapper.deleteById(id);
         //1代表收入,此时需要减去这笔收入
         //0代表支出，要加上这笔支出
         if (type == 1) {
