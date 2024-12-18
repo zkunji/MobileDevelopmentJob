@@ -44,6 +44,8 @@ public class ExpensesController {
         return expensesService.getCategoryOfConsumption(UID);
     }
 
+    
+
     @GetMapping("/getIncomeData")
     public SaResult getCategoryOfIncome() {
         String UID = (String) StpUtil.getLoginId();
