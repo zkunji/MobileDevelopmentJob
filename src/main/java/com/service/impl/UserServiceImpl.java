@@ -57,7 +57,12 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     @Override
     public SaResult registration(String userEmail, String password) {
         if (userEmail == null || password == null) {
-            SaResult.error("[ERROR]: 注册失败,用户名或密码不能为空");
+            return SaResult.error("[ERROR]: 注册失败,用户名或密码不能为空");
+        }
+        EmailValidator emailValidator = EmailValidator.getInstance();
+        boolean isValid = emailValidator.isValid(userEmail);
+        if (!isValid) {
+            return SaResult.error("[ERROR]: 注册失败，邮箱地址非法");
         }
         String encryptedPassword = BCryptUtil.hashPassword(password);
         User newUser = new User(userEmail, encryptedPassword);

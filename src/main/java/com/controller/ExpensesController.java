@@ -30,23 +30,23 @@ public class ExpensesController {
     @GetMapping("/get")
     public SaResult getRecord() {
         String UID = (String) StpUtil.getLoginId();
-        return SaResult.data(expensesService.getRecord(UID));
+        return expensesService.getRecord(UID);
     }
 
     @PostMapping("/delete")
     public SaResult deleteRecord(Integer id) {
-        return SaResult.data(expensesService.deleteRecord(id));
+        return expensesService.deleteRecord(id);
     }
 
     @GetMapping("/getConsumeData")
     public SaResult getCategoryOfConsumption() {
         String UID = (String) StpUtil.getLoginId();
-        return SaResult.data(expensesService.getCategoryOfConsumption(UID));
+        return expensesService.getCategoryOfConsumption(UID);
     }
 
     @GetMapping("/getIncomeData")
     public SaResult getCategoryOfIncome() {
         String UID = (String) StpUtil.getLoginId();
-        return SaResult.data(expensesService.getIncomeData(UID));
+        return expensesService.getIncomeData(UID);
     }
 }

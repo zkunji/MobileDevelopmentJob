@@ -28,4 +28,7 @@ public class Income {
         this.expenditure = expenditure;
         this.surplus = surplus;
     }
+
+    public Income() {
+    }
 }

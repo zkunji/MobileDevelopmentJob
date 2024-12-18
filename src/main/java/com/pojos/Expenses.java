@@ -28,11 +28,14 @@ public class Expenses {
     private Integer type;
     private String note;
 
-    public Expenses(Double amount, Integer category_id, String user_id, Integer type, String note) {
+    public Expenses(String userId, Integer categoryId, Double amount, Integer type, String note) {
+        this.userId = userId;
+        this.categoryId = categoryId;
         this.amount = amount;
-        this.categoryId = category_id;
-        this.userId = user_id;
         this.type = type;
         this.note = note;
+    }
+
+    public Expenses() {
     }
 }

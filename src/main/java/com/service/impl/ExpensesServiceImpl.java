@@ -40,6 +40,7 @@ public class ExpensesServiceImpl extends ServiceImpl<ExpensesMapper, Expenses> i
         this.incomeMapper = incomeMapper;
         this.categoriesMapper = categoriesMapper;
     }
+
     /**
      * @param expenses 前端传递的一条新的消费记录
      * @return 返回插入数据库的结果
@@ -87,7 +88,7 @@ public class ExpensesServiceImpl extends ServiceImpl<ExpensesMapper, Expenses> i
 
     /**
      * @param userId 用户id
-     * @return 给扇形图返回消费数据
+     * @return 给玫瑰图返回消费数据
      */
     @Override
     public SaResult getCategoryOfConsumption(String userId) {
@@ -97,6 +98,10 @@ public class ExpensesServiceImpl extends ServiceImpl<ExpensesMapper, Expenses> i
         return SaResult.data(data);
     }
 
+    /**
+     * @param userId 用户Id
+     * @return 给玫瑰图返回收入数据
+     */
 
     @Override
     public SaResult getCategoryOfIncome(String userId) {
@@ -124,6 +129,7 @@ public class ExpensesServiceImpl extends ServiceImpl<ExpensesMapper, Expenses> i
         }
         return map;
     }
+
     /**
      * @param userId 用户id
      * @return 返回支出折线图
@@ -150,8 +156,9 @@ public class ExpensesServiceImpl extends ServiceImpl<ExpensesMapper, Expenses> i
      */
     @Override
     public SaResult getIncomeData(String userId) {
-        LambdaQueryWrapper<Expenses> queryWrapper = searchExpensesData(userId);
+        LambdaQueryWrapper<Expenses> queryWrapper = searchIncomeData(userId);
         List<Expenses> income = expensesMapper.selectList(queryWrapper);
+        System.out.println("Income data: " + income);
         Map<Integer, Double> dailyIncomeDataMap = new HashMap<>();
         for (Expenses e : income) {
             if (e.getType() == 1) {
@@ -164,6 +171,11 @@ public class ExpensesServiceImpl extends ServiceImpl<ExpensesMapper, Expenses> i
         return SaResult.data(dailyIncomeDataMap);
     }
 
+    /**总支出信息
+     * @param userId 用户id
+     * @param price  消费金额
+     * @return 更新的支出信息是否成功
+     */
     public SaResult expenditure(String userId, Double price) {
         LambdaUpdateWrapper<Income> updateWrapper = searchData(userId);
         Income data = incomeMapper.selectOne(updateWrapper);
@@ -180,10 +192,27 @@ public class ExpensesServiceImpl extends ServiceImpl<ExpensesMapper, Expenses> i
                 return SaResult.error("[ERROR]: 更新支出信息失败");
             }
             return SaResult.data(newExpenditure);
+        } else {
+            Income income = new Income(
+                    userId,
+                    0.00,
+                    price,
+                    (-1) * price
+            );
+            int insert = incomeMapper.insert(income);
+            if (insert > 0) {
+                return SaResult.ok("[INFO]: 插入信息成功");
+            }
         }
         return SaResult.error("[ERROR]: 未查询到相关信息");
     }
 
+    /**
+     * 总收入信息
+     * @param userId 用户Id
+     * @param price 收入金额
+     * @return 返回更新状态
+     */
     public SaResult income(String userId, Double price) {
         LambdaUpdateWrapper<Income> updateWrapper = searchData(userId);
         Income data = incomeMapper.selectOne(updateWrapper);
@@ -199,9 +228,21 @@ public class ExpensesServiceImpl extends ServiceImpl<ExpensesMapper, Expenses> i
                 return SaResult.error("[ERROR]: 更新收入信息失败");
             }
             return SaResult.data(newIncome);
+        } else {
+            Income income = new Income(
+                    userId,
+                    price,
+                    0.00,
+                    price
+            );
+            int insert = incomeMapper.insert(income);
+            if (insert > 0) {
+                return SaResult.ok("[INFO]: 插入信息成功");
+            }
         }
         return SaResult.error("[ERROR]: 未查询到相关信息");
     }
+
 
     public LambdaUpdateWrapper<Income> searchData(String userId) {
         LambdaUpdateWrapper<Income> updateWrapper = new LambdaUpdateWrapper<>();

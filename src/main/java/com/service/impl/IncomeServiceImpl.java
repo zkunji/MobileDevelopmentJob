@@ -30,8 +30,9 @@ public class IncomeServiceImpl extends ServiceImpl<IncomeMapper, Income> impleme
 
     @Override
     public SaResult overview(String userId) {
-        Income income = incomeMapper.selectById(userId);
-        if (income == null) {
+        LambdaQueryWrapper<Income> queryWrapper = searchCurrentMonthData(userId);
+        Income income1 = incomeMapper.selectList(queryWrapper).get(0);
+        if (income1==null){
             Income defaultData = new Income(
                     userId,
                     0.00,
@@ -41,8 +42,6 @@ public class IncomeServiceImpl extends ServiceImpl<IncomeMapper, Income> impleme
             incomeMapper.insert(defaultData);
             return SaResult.data(defaultData);
         }
-        LambdaQueryWrapper<Income> queryWrapper = searchCurrentMonthData(userId);
-        Income income1 = incomeMapper.selectList(queryWrapper).get(0);
         return SaResult.data(income1);
     }
     public LambdaQueryWrapper<Income> searchCurrentMonthData(String userId) {
