@@ -3,12 +3,8 @@ package com.controller;
 import cn.dev33.satoken.stp.StpUtil;
 import cn.dev33.satoken.util.SaResult;
 import com.service.UserService;
-import com.util.TokenParseUtil;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
@@ -34,15 +30,16 @@ public class UserController {
         return userService.login(userEmail, password);
     }
 
-    @PostMapping("/registration")
-    public SaResult registration(String userEmail, String password) {
-        return userService.registration(userEmail, password);
-    }
-
     @PostMapping("/rename")
     public SaResult rename(String newUserName) {
         String UID = (String) StpUtil.getLoginId();
         return userService.rename(UID, newUserName);
+    }
+
+    @GetMapping("info")
+    public SaResult getUserInfo() {
+        String UID = (String) StpUtil.getLoginId();
+        return userService.getUserInfo(UID);
     }
 
     @PostMapping("/resetPassword")

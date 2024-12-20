@@ -21,4 +21,6 @@ public interface UserService extends IService<User> {
     SaResult updatePassword(String userId, Map<String, String> param);
 
     SaResult updateEmailAddress(String userId, String newEmailAddress);
+
+    SaResult getUserInfo(String userId);
 }

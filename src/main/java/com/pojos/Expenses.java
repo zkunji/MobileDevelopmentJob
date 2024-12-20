@@ -23,8 +23,8 @@ public class Expenses {
     private String userId;
     private Integer categoryId;
     private Double amount;
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    private LocalDateTime expenseDate = LocalDateTime.now();
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private LocalDate expenseDate = LocalDate.now();
     private Integer type;
     private String note;
 

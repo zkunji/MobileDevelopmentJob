@@ -15,6 +15,7 @@ import org.apache.commons.validator.routines.EmailValidator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -38,20 +39,21 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     public SaResult login(String userEmail, String password) {
         LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(User::getUserEmail, userEmail);
-        User user = null;
-        try {
-            user = userMapper.selectList(queryWrapper).get(0);
-        } catch (Exception e) {
+        List<User> list = userMapper.selectList(queryWrapper);
+        System.out.println(list);
+        if (list.isEmpty()) {
+            return registration(userEmail, password);
+        } else {
+            User user = list.get(0);
+            String encryptedPassword = user.getPassword();
+            boolean isRight = passwordValidation(password, encryptedPassword);
+            if (isRight) {
+                StpUtil.login(user.getUserId(), new SaLoginModel().setTimeout(60 * 60 * 24 * 30));
+                SaTokenInfo tokenInfo = StpUtil.getTokenInfo();
+                return SaResult.data(tokenInfo);
+            }
             return SaResult.error("[ERROR]: 用户名或密码错误");
         }
-        String encryptedPassword = user.getPassword();
-        boolean isRight = passwordValidation(password, encryptedPassword);
-        if (isRight) {
-            StpUtil.login(user.getUserId(), new SaLoginModel().setTimeout(60 * 60 * 24 * 30));
-            SaTokenInfo tokenInfo = StpUtil.getTokenInfo();
-            return SaResult.data(tokenInfo);
-        }
-        return SaResult.error("[ERROR]: 用户名或密码错误");
     }
 
     @Override
@@ -71,6 +73,13 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             return SaResult.ok("[INFO]: 注册成功");
         }
         return SaResult.error("[ERROR]: 注册失败");
+    }
+
+    @Override
+    public SaResult getUserInfo(String userId) {
+        LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
+        User user = userMapper.selectList(queryWrapper).get(0);
+        return SaResult.data(user);
     }
 
     @Override

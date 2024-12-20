@@ -23,9 +23,10 @@ public class IncomeController {
         this.incomeService = incomeService;
     }
 
-    @GetMapping
+    @GetMapping("/get")
     public SaResult overview() {
         String UID = (String) StpUtil.getLoginId();
-        return SaResult.data(incomeService.overview(UID));
+        System.out.println("test");
+        return incomeService.overview(UID);
     }
 }

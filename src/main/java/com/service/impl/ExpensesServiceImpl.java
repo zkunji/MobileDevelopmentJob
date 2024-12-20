@@ -14,10 +14,8 @@ import com.service.ExpensesService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.time.LocalDate;
+import java.util.*;
 
 /**
  * @author Zhangkunji
@@ -47,11 +45,33 @@ public class ExpensesServiceImpl extends ServiceImpl<ExpensesMapper, Expenses> i
      */
     @Override
     public SaResult addRecord(Expenses expenses) {
-        if (expenses.getType() == 1) {
-            income(expenses.getUserId(), expenses.getAmount());
-        } else if (expenses.getType() == 0) {
-            expenditure(expenses.getUserId(), expenses.getAmount());
+        LambdaQueryWrapper<Income> queryWrapper = searchData(expenses.getUserId());
+        List<Income> incomeList = incomeMapper.selectList(queryWrapper);
+        Income income = incomeList.isEmpty() ? null : incomeList.get(0);
+        if (income == null) {
+            Income i = new Income(
+                    expenses.getUserId(),
+                    0.00,
+                    0.00,
+                    0.00
+            );
+            incomeMapper.insert(i);
         }
+        LambdaUpdateWrapper<Income> updateWrapper = updateData(expenses.getUserId());
+        if (expenses.getType() == 1) {
+            if (income != null) {
+                updateWrapper
+                        .set(Income::getTotalIncome, income.getTotalIncome() + expenses.getAmount())
+                        .set(Income::getSurplus, income.getSurplus() + expenses.getAmount());
+            }
+        } else if (expenses.getType() == 0) {
+            if (income != null) {
+                updateWrapper
+                        .set(Income::getExpenditure, income.getExpenditure() + expenses.getAmount())
+                        .set(Income::getSurplus, income.getSurplus() - expenses.getAmount());
+            }
+        }
+        incomeMapper.update(updateWrapper);
         int insert = expensesMapper.insert(expenses);
         if (insert > 0) {
             return SaResult.ok("[INFO]: 消费记录插入成功");
@@ -74,21 +94,29 @@ public class ExpensesServiceImpl extends ServiceImpl<ExpensesMapper, Expenses> i
         Expenses expenses = expensesMapper.selectById(id);
         String userId = expenses.getUserId();
         Integer type = expenses.getType();
+        System.out.println(type);
         Double price = expenses.getAmount();
-        expensesMapper.deleteById(id);
         //1代表收入,此时需要减去这笔收入
         //0代表支出，要加上这笔支出
         if (type == 1) {
-            return expenditure(userId, price);
+            if (minusIncome(userId, price)) {
+                expensesMapper.deleteById(id);
+                LambdaQueryWrapper<Income> queryWrapper = searchData(userId);
+                return SaResult.data(incomeMapper.selectList(queryWrapper));
+            }
         } else if (type == 0) {
-            return income(userId, price);
+            if (minusExpenditure(userId, price)) {
+                expensesMapper.deleteById(id);
+                LambdaQueryWrapper<Income> queryWrapper = searchData(userId);
+                return SaResult.data(incomeMapper.selectList(queryWrapper));
+            }
         }
-        return null;
+        return SaResult.error("[ERROR]: 删除消费记录成功");
     }
 
     /**
      * @param userId 用户id
-     * @return 给玫瑰图返回消费数据
+     * @return 给圆环图返回消费数据
      */
     @Override
     public SaResult getCategoryOfConsumption(String userId) {
@@ -100,7 +128,7 @@ public class ExpensesServiceImpl extends ServiceImpl<ExpensesMapper, Expenses> i
 
     /**
      * @param userId 用户Id
-     * @return 给玫瑰图返回收入数据
+     * @return 给圆环图返回收入数据
      */
 
     @Override
@@ -117,7 +145,7 @@ public class ExpensesServiceImpl extends ServiceImpl<ExpensesMapper, Expenses> i
      */
     public Map<String, Double> getMonthIAndEData(List<Expenses> data) {
         List<Categories> categories = categoriesMapper.selectList(null);
-        Map<Integer, String> categoryMap = new HashMap<>();
+        Map<Integer, String> categoryMap = new TreeMap<>();
         //创建category id与name的映射
         for (Categories c : categories) {
             categoryMap.put(c.getCategoryId(), c.getCategoryName());
@@ -135,13 +163,13 @@ public class ExpensesServiceImpl extends ServiceImpl<ExpensesMapper, Expenses> i
      * @return 返回支出折线图
      */
     @Override
-    public SaResult getExpenditureData(String userId) {
+    public SaResult getLineChartExpenditureData(String userId) {
         LambdaQueryWrapper<Expenses> queryWrapper = searchExpensesData(userId);
         List<Expenses> expenses = expensesMapper.selectList(queryWrapper);
-        Map<Integer, Double> dailyExpendDataMap = new HashMap<>();
+        Map<Integer, Double> dailyExpendDataMap = new TreeMap<>();
         for (Expenses e : expenses) {
             if (e.getType() == 0) {
-                LocalDateTime time = e.getExpenseDate();
+                LocalDate time = e.getExpenseDate();
                 int dayOfMonth = time.getDayOfMonth();
                 Double amount = e.getAmount();
                 dailyExpendDataMap.merge(dayOfMonth, amount, Double::sum);
@@ -155,14 +183,14 @@ public class ExpensesServiceImpl extends ServiceImpl<ExpensesMapper, Expenses> i
      * @return 返回收入折线图数据
      */
     @Override
-    public SaResult getIncomeData(String userId) {
+    public SaResult getLineChartIncomeData(String userId) {
         LambdaQueryWrapper<Expenses> queryWrapper = searchIncomeData(userId);
         List<Expenses> income = expensesMapper.selectList(queryWrapper);
         System.out.println("Income data: " + income);
-        Map<Integer, Double> dailyIncomeDataMap = new HashMap<>();
+        Map<Integer, Double> dailyIncomeDataMap = new TreeMap<>();
         for (Expenses e : income) {
             if (e.getType() == 1) {
-                LocalDateTime time = e.getExpenseDate();
+                LocalDate time = e.getExpenseDate();
                 int dayOfMonth = time.getDayOfMonth();
                 Double amount = e.getAmount();
                 dailyIncomeDataMap.merge(dayOfMonth, amount, Double::sum);
@@ -171,27 +199,44 @@ public class ExpensesServiceImpl extends ServiceImpl<ExpensesMapper, Expenses> i
         return SaResult.data(dailyIncomeDataMap);
     }
 
-    /**总支出信息
+    @Override
+    public SaResult getBarChartData(String userId) {
+        LambdaQueryWrapper<Income> queryWrapper = new LambdaQueryWrapper<>();
+        List<Income> checkList = incomeMapper.selectList(queryWrapper);
+        Map<Integer, Map<String, Double>> monthlyData = new TreeMap<>();
+        for (Income i : checkList) {
+            LocalDate time = i.getMonth();
+            Map<String, Double> dataOfPrice = new LinkedHashMap<>();
+            dataOfPrice.put("Income", i.getTotalIncome());
+            dataOfPrice.put("expenditure", i.getExpenditure());
+            int monthOfYear = time.getMonthValue();
+            monthlyData.put(monthOfYear, dataOfPrice);
+        }
+
+        return SaResult.data(monthlyData);
+    }
+
+    /**
+     * 总支出信息
+     *
      * @param userId 用户id
      * @param price  消费金额
      * @return 更新的支出信息是否成功
      */
-    public SaResult expenditure(String userId, Double price) {
-        LambdaUpdateWrapper<Income> updateWrapper = searchData(userId);
-        Income data = incomeMapper.selectOne(updateWrapper);
+    public boolean minusIncome(String userId, Double price) {
+        LambdaQueryWrapper<Income> queryWrapper = searchData(userId);
+        LambdaUpdateWrapper<Income> updateWrapper = updateData(userId);
+        Income data = incomeMapper.selectOne(queryWrapper);
         if (data != null) {
-            Double currentExpenditure = data.getExpenditure();
+            Double currentIncome = data.getTotalIncome();
             Double currentSurplus = data.getSurplus();
-            Double newExpenditure = currentExpenditure + price;
+            Double newIncome = currentIncome - price;
             Double newSurplus = currentSurplus - price;
             //更新结余和支出信息
-            updateWrapper.set(Income::getExpenditure, newExpenditure)
+            updateWrapper.set(Income::getExpenditure, newIncome)
                     .set(Income::getSurplus, newSurplus);
             int update = incomeMapper.update(updateWrapper);
-            if (!(update > 0)) {
-                return SaResult.error("[ERROR]: 更新支出信息失败");
-            }
-            return SaResult.data(newExpenditure);
+            return update > 0;
         } else {
             Income income = new Income(
                     userId,
@@ -200,34 +245,30 @@ public class ExpensesServiceImpl extends ServiceImpl<ExpensesMapper, Expenses> i
                     (-1) * price
             );
             int insert = incomeMapper.insert(income);
-            if (insert > 0) {
-                return SaResult.ok("[INFO]: 插入信息成功");
-            }
+            return insert > 0;
         }
-        return SaResult.error("[ERROR]: 未查询到相关信息");
     }
 
     /**
      * 总收入信息
+     *
      * @param userId 用户Id
-     * @param price 收入金额
+     * @param price  收入金额
      * @return 返回更新状态
      */
-    public SaResult income(String userId, Double price) {
-        LambdaUpdateWrapper<Income> updateWrapper = searchData(userId);
-        Income data = incomeMapper.selectOne(updateWrapper);
+    public boolean minusExpenditure(String userId, Double price) {
+        LambdaQueryWrapper<Income> queryWrapper = searchData(userId);
+        LambdaUpdateWrapper<Income> updateWrapper = updateData(userId);
+        Income data = incomeMapper.selectOne(queryWrapper);
         if (data != null) {
-            Double currentIncome = data.getTotalIncome();
+            Double currentExpenditure = data.getExpenditure();
             Double currentSurplus = data.getSurplus();
-            Double newIncome = currentIncome + price;
+            Double newExpenditure = currentExpenditure - price;
             Double newSurplus = currentSurplus + price;
-            updateWrapper.set(Income::getTotalIncome, newIncome)
+            updateWrapper.set(Income::getTotalIncome, newExpenditure)
                     .set(Income::getSurplus, newSurplus);
             int update = incomeMapper.update(updateWrapper);
-            if (!(update > 0)) {
-                return SaResult.error("[ERROR]: 更新收入信息失败");
-            }
-            return SaResult.data(newIncome);
+            return update > 0;
         } else {
             Income income = new Income(
                     userId,
@@ -236,27 +277,42 @@ public class ExpensesServiceImpl extends ServiceImpl<ExpensesMapper, Expenses> i
                     price
             );
             int insert = incomeMapper.insert(income);
-            if (insert > 0) {
-                return SaResult.ok("[INFO]: 插入信息成功");
-            }
+            return insert > 0;
         }
-        return SaResult.error("[ERROR]: 未查询到相关信息");
     }
 
 
-    public LambdaUpdateWrapper<Income> searchData(String userId) {
-        LambdaUpdateWrapper<Income> updateWrapper = new LambdaUpdateWrapper<>();
-        LocalDateTime firstDayOfMonth = LocalDateTime.now().withDayOfMonth(1);
-        LocalDateTime lastDayOfMonth = firstDayOfMonth.plusMonths(1).minusDays(1);
+    public LambdaQueryWrapper<Income> searchData(String userId) {
+        LambdaQueryWrapper<Income> updateWrapper = new LambdaQueryWrapper<>();
+        LocalDate firstDayOfMonth = LocalDate.now().withDayOfMonth(1);
+        LocalDate lastDayOfMonth = firstDayOfMonth.plusMonths(1).minusDays(1);
         updateWrapper.between(Income::getMonth, firstDayOfMonth, lastDayOfMonth)
                 .and(i -> i.eq(Income::getUserId, userId));
         return updateWrapper;
     }
 
+    public LambdaUpdateWrapper<Income> updateData(String userId) {
+        LambdaUpdateWrapper<Income> updateWrapper = new LambdaUpdateWrapper<>();
+        LocalDate firstDayOfMonth = LocalDate.now().withDayOfMonth(1);
+        LocalDate lastDayOfMonth = firstDayOfMonth.plusMonths(1).minusDays(1);
+        updateWrapper.between(Income::getMonth, firstDayOfMonth, lastDayOfMonth)
+                .and(i -> i.eq(Income::getUserId, userId));
+        return updateWrapper;
+    }
+
+    public LambdaQueryWrapper<Income> searchCurrentYearOfDay(String userId) {
+        LambdaQueryWrapper<Income> queryWrapper = new LambdaQueryWrapper<>();
+        LocalDate firstDayOfYear = LocalDate.now().withDayOfYear(1);
+        LocalDate lastDayOfYear = firstDayOfYear.plusYears(1).minusDays(1);
+        queryWrapper.between(Income::getMonth, firstDayOfYear, lastDayOfYear)
+                .and(i -> i.eq(Income::getUserId, userId));
+        return queryWrapper;
+    }
+
     public LambdaQueryWrapper<Expenses> searchCurrentMonthData(String userId) {
         LambdaQueryWrapper<Expenses> queryWrapper = new LambdaQueryWrapper<>();
-        LocalDateTime firstDayOfMonth = LocalDateTime.now().withDayOfMonth(1);
-        LocalDateTime lastDayOfMonth = firstDayOfMonth.plusMonths(1).minusDays(1);
+        LocalDate firstDayOfMonth = LocalDate.now().withDayOfMonth(1);
+        LocalDate lastDayOfMonth = firstDayOfMonth.plusMonths(1).minusDays(1);
         queryWrapper.between(Expenses::getExpenseDate, firstDayOfMonth, lastDayOfMonth)
                 .and(i -> i.eq(Expenses::getUserId, userId));
         return queryWrapper;
@@ -264,8 +320,8 @@ public class ExpensesServiceImpl extends ServiceImpl<ExpensesMapper, Expenses> i
 
     public LambdaQueryWrapper<Expenses> searchExpensesData(String userId) {
         LambdaQueryWrapper<Expenses> queryWrapper = new LambdaQueryWrapper<>();
-        LocalDateTime firstDayOfMonth = LocalDateTime.now().withDayOfMonth(1);
-        LocalDateTime lastDayOfMonth = firstDayOfMonth.plusMonths(1).minusDays(1);
+        LocalDate firstDayOfMonth = LocalDate.now().withDayOfMonth(1);
+        LocalDate lastDayOfMonth = firstDayOfMonth.plusMonths(1).minusDays(1);
         queryWrapper.between(Expenses::getExpenseDate, firstDayOfMonth, lastDayOfMonth)
                 .and(i -> i.eq(Expenses::getUserId, userId).eq(Expenses::getType, 0));
         return queryWrapper;
@@ -273,8 +329,8 @@ public class ExpensesServiceImpl extends ServiceImpl<ExpensesMapper, Expenses> i
 
     public LambdaQueryWrapper<Expenses> searchIncomeData(String userId) {
         LambdaQueryWrapper<Expenses> queryWrapper = new LambdaQueryWrapper<>();
-        LocalDateTime firstDayOfMonth = LocalDateTime.now().withDayOfMonth(1);
-        LocalDateTime lastDayOfMonth = firstDayOfMonth.plusMonths(1).minusDays(1);
+        LocalDate firstDayOfMonth = LocalDate.now().withDayOfMonth(1);
+        LocalDate lastDayOfMonth = firstDayOfMonth.plusMonths(1).minusDays(1);
         queryWrapper.between(Expenses::getExpenseDate, firstDayOfMonth, lastDayOfMonth)
                 .and(i -> i.eq(Expenses::getUserId, userId).eq(Expenses::getType, 1));
         return queryWrapper;

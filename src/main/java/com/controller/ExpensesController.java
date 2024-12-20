@@ -38,17 +38,37 @@ public class ExpensesController {
         return expensesService.deleteRecord(id);
     }
 
-    @GetMapping("/getConsumeData")
+    //圆环图
+    @GetMapping("/getExpenditureDCData")
     public SaResult getCategoryOfConsumption() {
         String UID = (String) StpUtil.getLoginId();
         return expensesService.getCategoryOfConsumption(UID);
     }
 
-    
-
-    @GetMapping("/getIncomeData")
+    //圆环图
+    @GetMapping("/getIncomeDCData")
     public SaResult getCategoryOfIncome() {
         String UID = (String) StpUtil.getLoginId();
-        return expensesService.getIncomeData(UID);
+        return expensesService.getCategoryOfIncome(UID);
+    }
+
+    //折线图
+    @GetMapping("/getExpenditureLCData")
+    public SaResult getLineChartExpenditureData() {
+        String UID = (String) StpUtil.getLoginId();
+        return expensesService.getLineChartExpenditureData(UID);
+    }
+
+    //折线图
+    @GetMapping("/getIncomeLCData")
+    public SaResult getLineChartIncomeData() {
+        String UID = (String) StpUtil.getLoginId();
+        return expensesService.getLineChartIncomeData(UID);
+    }
+
+    @GetMapping("/getBarData")
+    public SaResult getBarData() {
+        String UID = (String) StpUtil.getLoginId();
+        return expensesService.getBarChartData(UID);
     }
 }

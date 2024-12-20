@@ -21,7 +21,9 @@ public interface ExpensesService extends IService<Expenses> {
 
     SaResult getCategoryOfIncome(String userId);
 
-    SaResult getExpenditureData(String id);
+    SaResult getLineChartExpenditureData(String id);
 
-    SaResult getIncomeData(String id);
+    SaResult getLineChartIncomeData(String id);
+
+    SaResult getBarChartData(String userId);
 }

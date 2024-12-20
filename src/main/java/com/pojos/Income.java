@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
@@ -19,8 +20,8 @@ public class Income {
     private Double totalIncome;//收入
     private Double expenditure;//支出
     private Double surplus;//结余
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    private LocalDateTime month = LocalDateTime.now();
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private LocalDate month = LocalDate.now();
 
     public Income(String userId, Double totalIncome, Double expenditure, Double surplus) {
         this.userId = userId;
