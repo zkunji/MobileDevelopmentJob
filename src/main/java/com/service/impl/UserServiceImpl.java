@@ -78,6 +78,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     @Override
     public SaResult getUserInfo(String userId) {
         LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(User::getUserId, userId);
         User user = userMapper.selectList(queryWrapper).get(0);
         return SaResult.data(user);
     }
