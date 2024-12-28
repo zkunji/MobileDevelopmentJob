@@ -318,6 +318,8 @@ public class ExpensesServiceImpl extends ServiceImpl<ExpensesMapper, Expenses> i
         return queryWrapper;
     }
 
+
+
     public LambdaQueryWrapper<Expenses> searchExpensesData(String userId) {
         LambdaQueryWrapper<Expenses> queryWrapper = new LambdaQueryWrapper<>();
         LocalDate firstDayOfMonth = LocalDate.now().withDayOfMonth(1);
